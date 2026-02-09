@@ -69,46 +69,98 @@ bronze.crm_prd_info;
 
 ----insert bronze.sales_details (clean data) into silver.Sales_details
 
-insert into silver.crm_sales_details(
-sls_ord_num,
-sls_prd_key,
-sls_cust_id,
-sls_order_dt,
-sls_ship_dt,
-sls_due_dt,
-sls_sales,
-sls_quantity,
-sls_price
+INSERT INTO silver.crm_sales_details (
+			sls_ord_num,
+			sls_prd_key,
+			sls_cust_id,
+			sls_order_dt,
+			sls_ship_dt,
+			sls_due_dt,
+			sls_sales,
+			sls_quantity,
+			sls_price
+		)
+		SELECT
+			sls_ord_num,
+			sls_prd_key,
+			sls_cust_id,
+			CASE
+				WHEN sls_order_dt = 0 OR LEN(sls_order_dt) != 8 THEN NULL
+				ELSE CAST(CAST(sls_order_dt AS VARCHAR) AS DATE)
+			END AS sls_order_dt,
+			CASE
+				WHEN sls_ship_dt = 0 OR LEN(sls_ship_dt) != 8 THEN NULL
+				ELSE CAST(CAST(sls_ship_dt AS VARCHAR) AS DATE)
+			END AS sls_ship_dt,
+			CASE
+				WHEN sls_due_dt = 0 OR LEN(sls_due_dt) != 8 THEN NULL
+				ELSE CAST(CAST(sls_due_dt AS VARCHAR) AS DATE)
+			END AS sls_due_dt,
+			CASE
+				WHEN sls_sales IS NULL OR sls_sales <= 0 OR sls_sales != sls_quantity * ABS(sls_price)
+					THEN sls_quantity * ABS(sls_price)
+				ELSE sls_sales
+			END AS sls_sales, -- Recalculate sales if original value is missing or incorrect
+			sls_quantity,
+			CASE
+				WHEN sls_price IS NULL OR sls_price <= 0
+					THEN sls_sales / NULLIF(sls_quantity, 0)
+				ELSE sls_price  -- Derive price if original value is invalid
+			END AS sls_price
+		FROM bronze.crm_sales_details;
+
+
+
+----insert bronze.erp_custaz12(clean data) insert into silver.erp_cust_az12
+
+insert into silver.erp_cust_az12(
+cid,
+bdate,
+gen
 )
 select
-sls_ord_num,
-sls_prd_key,
-sls_cust_id,
 case
-when sls_order_dt<=0  or len(sls_order_dt)!=8 then null
-else cast(cast(sls_order_dt as varchar) as date) 
-end as sls_order_dt,
+when cid like 'NAS%' then substring(cid,4,len(cid))
+else cid
+end as cid,
 case
-when sls_ship_dt<=0  or len(sls_ship_dt)!=8 then null
-else cast(cast(sls_ship_dt as varchar) as date) 
-end as sls_ship_date,
+when bdate>getdate() then Null
+else bdate
+end as bdate,
 case
-when sls_due_dt<=0  or len(sls_due_dt)!=8 then null
-else cast(cast(sls_due_dt as varchar) as date) 
-end as sls_due_dt,
+when upper(trim(gen)) in ('F','Female') then 'Female'
+when upper(trim(gen)) in ('M','Male') then 'male'
+else 'n/a'
+end as gen
+from bronze.erp_cust_Az12
+
+
+----insert bronze.erp_loc_a101(clean data) insert into sliver.erp_loc_a101
+insert into silver.erp_loc_a101(
+cid,
+cntry
+)
+select
+replace(cid,'-','') as cid,
 case
- when sls_sales is null or sls_sales <= 0 or sls_sales != sls_quantity * ABS(sls_price)
-  then sls_quantity * abs(sls_price)
-  else sls_sales
-end as sls_sales,
-case
- when sls_quantity is null or sls_quantity <= 0 or sls_quantity != sls_sales / ABS(sls_price)
-  then sls_sales / ABS(sls_price)
-  else sls_quantity
-end as sls_quantity,
-case
- when sls_price is null or sls_price <= 0 or sls_price != sls_sales / nullif(sls_quantity,1)
-  then sls_sales / nullif(sls_quantity,1)
-  else sls_price
-end as sls_price
-from bronze.crm_sales_details
+when upper(trim(cntry)) in ('US','USA','Unitied states') then 'Unitied States'
+when upper(trim(cntry)) in('DE','Germany') then 'Germany'
+when trim(cntry) =' ' or cntry is null then 'n/a'
+else trim(cntry) 
+end as cntry
+from bronze.erp_Loc_A101
+
+
+
+----insert bronze.erp_px_cat_g1v2
+
+insert into silver.erp_px_cat_g1v2(
+id,
+cat,
+subcat,
+maintenance
+)
+select* from bronze.erp_px_catat_g1v2
+
+
+
