@@ -1,0 +1,28 @@
+-- Qc - checking if CID is matching with cst_key from silver.crm_cust_info
+
+select cid from bronze.erp_loc_a101;
+
+
+select
+replace(cid,'-',' ') as cid
+from bronze.erp_Loc_A101
+
+---check on country column
+
+select distinct
+cntry
+from bronze.erp_Loc_A101
+
+
+select
+case
+when upper(trim(cntry)) in ('US','USA','Unitied states') then 'Unitied States'
+when upper(trim(cntry)) in('DE','Germany') then 'Germany'
+when upper(trim(cntry))='Canada' then 'Canada'
+when upper(trim(cntry))='Unitied kingdom' then 'Unitied Kingdom'
+when upper(trim(cntry))='Austraila' then 'Austraila'
+else 'n/a'
+end as cntry
+from bronze.erp_Loc_A101
+
+
